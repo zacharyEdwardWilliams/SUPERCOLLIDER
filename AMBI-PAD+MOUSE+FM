@@ -1,0 +1,168 @@
+
+(
+SynthDef(\pad, {
+	var snd;
+	snd = Saw.ar(\freq.kr(432) * ({ LFNoise2.kr(8) } ! 16 * Line.kr(0, 0.5, 3)).midiratio * [1, 2, 1, 2, 1, 2, 2, 1, 2, 1, 2, 1, 2, 1]);
+	snd = DelayC.ar(snd, 0.01, { Rand(0, 0.01) } ! snd.size);
+	snd = Splay.ar(snd);
+	snd = LPF.ar(snd, \freq.kr(432) * XLine.kr(16, 4, 8));
+	snd = LPF.ar(snd, XLine.kr(1000, 100, 8));
+	snd = BPeakEQ.ar(snd, \freq.kr(432) * 8, 0.1, 8);
+	// snd = Latch.ar(snd, Impulse.ar(Rand(1, 16e3)));
+	snd = snd * Env.asr(0.5, 0.1, 0.2).ar(Done.freeSelf, \gate.kr(1));
+    snd = snd * \amp.kr(-10.dbamp);
+	snd = snd ! 2;
+    Out.ar(\out.kr(0), snd);
+}).add;
+
+
+SynthDef(\pad2, {
+	var snd;
+	snd = SinOsc.ar(\freq.kr(432) * ({ LFNoise2.kr(8) } ! 16 * Line.kr(0, 0.5, 3)).midiratio * [2, 1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 1]);
+	snd = DelayC.ar(snd, 0.01, { Rand(0, 0.01) } ! snd.size);
+	snd = Splay.ar(snd);
+	snd = LPF.ar(snd, \freq.kr(432) * XLine.kr(16, 4, 8));
+	// snd = LPF.ar(snd, XLine.kr(1000, 100, 8));
+	snd = Latch.ar(snd, Impulse.ar(Rand(1000, 16e3)));
+	snd = BPeakEQ.ar(snd, \freq.kr(432) * 8, 0.1, 8);
+	snd = snd * Env.asr(0.1,0.1,0.1).ar(Done.freeSelf, \gate.kr(1));
+	snd = snd * \amp.kr(-10.dbamp);
+	snd = snd ! 2;
+	Out.ar(\out.kr(0), snd);
+}).add;
+
+SynthDef(\ping, {
+	    var snd;
+	    snd = SinOsc.ar(\freq.kr(432) * (LFNoise2.kr(0.3) * 0.1).midiratio);
+		snd = snd * Env.perc(0.5, 3).ar(Done.freeSelf);
+		snd = snd * \amp.kr(-10.dbamp);
+		snd = Pan2.ar(snd, \pan.kr(0));
+		Out.ar(\out.kr(0), snd);
+}).add;
+
+SynthDef(\fm, {
+	var snd, freq;
+	freq = \freq.kr(432) * (LFNoise2.kr(8) * 0.1).midiratio;
+	snd = SinOsc.ar(freq + (SinOsc.ar(freq * (800 / freq).round) * 1000));
+	snd = snd + SinOsc.ar(freq + (SinOsc.ar(freq * (2000 / freq).round) * 1000));
+	// snd = Latch.ar(snd, Impulse.ar(Rand(90, 16e3)));
+    snd = LPF.ar(snd, 2000) * (-10.dbamp);
+    snd = snd * Env.perc(0.5, 8).ar(Done.freeSelf);
+    snd = snd * \amp.kr(-10.dbamp);
+    snd = Pan2.ar(snd, \pan.kr(0));
+    Out.ar(\out.kr(0), snd);
+}).add;
+
+SynthDef(\fx, {
+	var snd;
+	snd = In.ar(\out.kr(0), 2);
+	snd = LeakDC.ar(snd);
+	snd = snd + PitchShift.ar(snd, 0.3, 0.5, 0, 0.1);
+	snd = snd + NHHall.ar(snd, 4, modDepth: 0.3);
+	snd = BHiShelf.ar(snd, 3000, 1, -10);
+	snd = BPeakEQ.ar(snd, 240, 0.1, -8);
+	snd = BPeakEQ.ar(snd, 460, 0.1, -8);
+	snd = BPeakEQ.ar(snd, 820, 0.1, -8);
+	snd = BLowShelf.ar(snd, 100, 0.1, 0);
+	snd = LPF.ar(snd, 300, 1);
+	snd = snd * -10.dbamp;
+	snd = snd.tanh;
+	snd = Limiter.ar(snd);
+	ReplaceOut.ar(\out.kr(0), snd);
+}).add;
+)
+
+
+// FM Bit-Crush SinOSC controlled by Mouse X+Y
+(
+var fmbit;
+{
+	fmbit =  SinOsc.ar(MouseX.kr([49, 49],900, 1) + (SinOsc.ar(MouseY.kr(0.9, 3000, 1) * (800 / MouseX.kr(1, 1000, 1) * 1000)))) +
+           SinOsc.ar(MouseX.kr(400,1000, 1) + (SinOsc.ar(MouseX.kr(0.9, 3000, 1) * (800 / MouseX.kr(1, 1000, 1) * 1000)))) +
+	       SinOsc.ar(MouseX.kr(90,100, 1) + (SinOsc.ar(MouseY.kr(100, 3000, 1) * (9000 / MouseX.kr(1, 1000, 1) * 1000))));
+	fmbit = fmbit + PitchShift.ar(fmbit, 0.3, 0.5, 0, 0.1);
+    fmbit = Latch.ar(fmbit, Impulse.ar(MouseY.kr(1000, 16e3)));
+	fmbit = LPF.ar(fmbit, MouseY.kr(30, 300), 10, -1);
+	fmbit = Latch.ar(fmbit, Impulse.ar(MouseY.kr(90000, 16e3)));
+	fmbit = fmbit + NHHall.ar(fmbit, MouseY.kr(0, 4), modDepth: MouseX.kr(0, 1));
+	fmbit = Limiter.ar(fmbit);
+	Out.ar(\out.kr(0), fmbit);
+}.play;
+)
+fmbit.free;
+
+
+
+(
+Routine {
+	var frequencies, chords, transpose;
+	t = 5;
+	chords = [
+		[3 + t, 7 + t, 12 + t, 14 + t, 15 + t, 24 + t, 26 + t],
+		[3 + t, 7 + t, 12 + t, 14 + t, 15 + t, 24 + t, 26 + t],
+		[5 + t, 9 + t, 14 + t, 16 + t, 19 + t, 26 + t, 28 + t, 29 + t, 31 + t],
+		[3 + t, 7 + t, 12 + t, 14 + t, 15 + t, 24 + t, 26 + t, 27 + t, 29 + t],
+		[1 + t, 5 + t, 10 + t, 12 + t, 13 + t, 22 + t, 24 + t, 25 + t, 27 + t],
+		[0 + t, 15 + t, 24 + t, 26 + t, 27 + t, 31 + t],
+	];
+
+	Synth.tail(nil, \fx);
+
+	Routine {
+		loop {
+			rrand(5.0, 8.0).wait;
+			6.do {
+				if(frequencies.notNil) {
+					Synth(\ping, [freq: frequencies.choose, amp: -20.dbamp, pan: rrand(-1.0, 1.0)]);
+				};
+				exprand(0.1, 0.5).wait;
+			};
+		};
+	} .play;
+
+
+	Routine {
+		loop {
+			rrand(5.0, 8.0).wait;
+			6.do {
+				if (frequencies.notNil) {
+					Synth(\fm, [freq: frequencies.choose, amp: -20.dbamp, pan: rrand(-1.0, 1.0)]);
+				};
+				exprand(0.1, 0.7).wait;
+			};
+		};
+	} .play;
+
+/*
+	Routine {
+		loop {
+			rrand(5.0, 8.0).wait;
+			6.do {
+				if (frequencies.notNil) {
+					Synth(\pad, [freq: frequencies.choose, amp: -20.dbamp, pan: rrand(-1.0, 1.0)]);
+				};
+				exprand(0.1, 0.5).wait;
+			};
+		};
+	} .play;*/
+		// frequencies = (45 + ([3, 7, 12, 14, 15, 24, 26] +.x [0, 7])).midicps;
+		//frequencies = ([23, 45, 13] + [3, 7, 12, 14, 15, 24, 26]).midicps;
+		// frequencies = 50 * (1..8).nthPrime;
+	/*	Synth.tail(nil, \fx);*/
+		loop {
+			chords.do { |chord|
+			frequencies = (39 + (chord +.x [0, 12])).midicps;
+			/*frequencies.scramble.do { |frequency|
+				Routine {
+					var synth;
+					synth = Synth(\pad, [freq: frequency]);
+					rrand(1.0, 4.0).wait;
+					synth.set(\gate, 0);
+				} .play;
+				rrand(0.3, 1.0).wait;
+			};*/
+			rrand(0.5, 10.0).wait;
+		};
+	};
+} .play
+)
